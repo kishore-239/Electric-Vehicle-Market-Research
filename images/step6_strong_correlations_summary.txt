@@ -1,0 +1,1738 @@
+this is webscrapping ipynb file code and got a dataset from it "# 🔎 Step 1.1 — Import Required Libraries
+### Why this step?
+
+Before scraping and analyzing EV data, we need to import essential Python libraries:
+
+- **NumPy & Pandas** → For data handling and analysis  
+- **Seaborn & Matplotlib** → For visualization  
+- **re (Regex)** → For text pattern cleaning  
+- **requests & BeautifulSoup** → For web scraping (sending HTTP requests and parsing HTML)  
+- **warnings** → To suppress unnecessary warning messages  
+
+This setup ensures we have all necessary tools for scraping, cleaning, and analyzing EV data efficiently.
+
+
+# Basic libraries
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import re
+import requests
+import time
+import warnings
+from bs4 import BeautifulSoup
+
+warnings.filterwarnings("ignore")
+
+
+
+
+# 🧩 Step 1.2 — Initialize Data Containers for Scraping
+### Why this step?
+Before starting the scraping process, we prepare empty Python lists to store data for each EV attribute — such as name, range, efficiency, weight, towing, and so on.  
+Each list will hold one column’s worth of information, which we’ll later combine into a single DataFrame.  
+
+✅ This structure ensures our scraped data remains organized and ready for tabular conversion.
+
+
+# Initialize empty lists for each EV attribute
+car_name = []
+availability = []
+range_km = []
+efficiency = []
+weight = []
+acceleration = []
+battery = []
+fastcharge = []
+towing = []
+cargo = []
+price = []
+year = []
+body_type = []
+page_num = []
+
+
+
+
+# 🧩 Step 1.3 — Scrape Car Data from the EV Database (Main Loop)
+### Purpose:
+This step iterates through 10 pages of the EV Database website, extracts details for each electric vehicle (e.g., name, range, efficiency, battery, towing capacity, etc.), and stores them in lists.
+
+### What Happens:
+1. A loop runs from pages 1–10.
+2. For each page:
+   - The script fetches HTML content from the EV Database main page.
+   - BeautifulSoup parses the page.
+   - All `<div>` elements with class `list-item` (representing cars) are found.
+3. From each car block, key information is extracted (if available) — otherwise `NaN` is appended.
+4. Results are stored in lists (`car_name`, `availability`, `range_km`, etc.) for later conversion into a DataFrame.
+5. The code prints the scraping duration for each page and total time at the end.
+
+### Why Important:
+This section collects the raw car data that forms the foundation for further cleaning and analysis (EDA).
+
+
+total_start = time.time()
+
+for i in range(1, 11):
+    start_time = time.time()
+    print(f"Scraping Page {i}...")
+
+    # The base site (EV database main listing)
+    url = "https://ev-database.org"
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    cars = soup.find_all("div", class_="list-item")
+
+    for car in cars:
+        # Extract car attributes safely
+        name = car.find("a", class_="title")
+        avail = car.find("div", class_="availability")
+        rng = car.find("span", class_="erange_real")
+        eff = car.find("span", class_="efficiency")
+        wgt = car.find("span", class_="weight_p")
+        acc = car.find("span", class_="acceleration_p")
+        batt = car.find("span", class_="battery_p")
+        fc = car.find("span", class_="fastcharge_speed_print")
+        tow = car.find("span", class_="towweight_p")
+        carg = car.find("span", class_="cargo")
+        prc = car.find("span", class_="pricefilter")
+        yr = car.find("span", class_="year_from")
+        shape = car.find("span", class_="shape-suv")
+
+        # Append values or NaN if not found
+        car_name.append(name.text.strip() if name else np.nan)
+        availability.append(avail.text.strip() if avail else np.nan)
+        range_km.append(rng.text.strip() if rng else np.nan)
+        efficiency.append(eff.text.strip() if eff else np.nan)
+        weight.append(wgt.text.strip() if wgt else np.nan)
+        acceleration.append(acc.text.strip() if acc else np.nan)
+        battery.append(batt.text.strip() if batt else np.nan)
+        fastcharge.append(fc.text.strip() if fc else np.nan)
+        towing.append(tow.text.strip() if tow else np.nan)
+        cargo.append(carg.text.strip() if carg else np.nan)
+        price.append(prc.text.strip() if prc else np.nan)
+        year.append(yr.text.strip() if yr else np.nan)
+        body_type.append("SUV" if shape else "Other")
+
+        page_num.append(i)
+
+    print(f"✅ Page {i} scraped in {time.time()-start_time:.2f} seconds")
+
+print("✅ Total scraping time (seconds):", round(time.time()-total_start, 2))
+
+
+##  🧩 Step 1.4 — Create a Data Frame
+
+
+df = pd.DataFrame({
+    "Car Name": car_name,
+    "Availability": availability,
+    "Range (km)": range_km,
+    "Efficiency (Wh/km)": efficiency,
+    "Weight (kg)": weight,
+    "Acceleration (0-100s)": acceleration,
+    "Battery (kWh)": battery,
+    "Fastcharge (kW)": fastcharge,
+    "Towing (kg)": towing,
+    "Cargo (L)": cargo,
+    "Price (€)": price,
+    "Year": year,
+    "Body Type": body_type,
+    "Page": page_num
+})
+
+print(f"✅ Total records collected: {len(df)}")
+df
+
+
+##  🧩 Step 1.5 — Drop those Duplicate rows 
+
+
+# Drop duplicate rows based on all columns
+df = df.drop_duplicates()
+
+# OR (better) drop duplicates based only on the car name if that’s unique:
+df = df.drop_duplicates(subset=["Car Name"], keep="first")
+
+# Reset index after dropping
+df = df.reset_index(drop=True)
+
+# Check new shape
+print(f"✅ Cleaned DataFrame shape: {df.shape}")
+
+
+#### Observation:
+- drop_duplicates() removes exact row duplicates.
+- Using subset=["Car Name"] ensures that only one entry per unique car is kept — even if other columns have small variations (like missing efficiency or price).
+- Resetting the index gives you a clean, continuous row numbering.
+
+
+
+df
+
+
+
+df.isna().sum()
+
+df.dtypes
+
+df.info()
+
+df.columns
+
+
+
+# 🔎 Step 1.6 — Inspect dataset & make a safety backup
+**Why:** Before any cleaning we must know what we have and create a backup copy so we can always restore original scraped data if something goes wrong.
+
+
+# Step 1: Inspect and backup
+print("Rows,Cols:", df.shape)
+display(df.head(5))
+print("\nColumn dtypes:\n", df.dtypes)
+print("\nMissing values per column:")
+print(df.isna().sum())
+
+# Make a deep copy backup
+df_backup = df.copy(deep=True)
+print("\n✅ Backup `df_backup` created — run `df = df_backup.copy()` to restore.")
+
+
+
+
+# 🧼 Step 2 — Normalize text columns
+**Why:** Remove leading/trailing whitespace and convert common placeholders (like 'unknown', 'Unknown') to `np.nan` consistently. That prevents subtle bugs later.
+
+
+# Step 2: Normalize text values safely
+
+# Columns assumed object/text — operate only if they exist
+text_cols = [c for c in df.columns if df[c].dtype == 'object']
+print("Will normalize these text columns:", text_cols)
+
+# Strip whitespace and replace common 'unknown' markers with np.nan
+for c in text_cols:
+    df[c] = df[c].astype(str).str.strip()  # ensure string
+    # Some rows might be literal 'nan' because of conversion; keep careful
+    df[c] = df[c].replace({'': np.nan, 'nan': np.nan, 'NaN': np.nan, 'unknown': np.nan, 'Unknown': np.nan})
+
+print("✅ Normalization complete. Missing values now per column:")
+print(df.isna().sum())
+
+
+df
+
+
+
+
+
+# 🔢 Step 3 — Create a robust numeric-cleaner using regex
+**Why:** Numeric columns currently contain units and text (e.g. '610 km', '178 Wh/km', '108.7 kWh', '4.9 sec', 'unknown').  
+We extract numeric values reliably while handling thousand separators and decimals. We *do not* overwrite original columns until verification steps pass.
+
+
+# Step 3: Helper function to extract numbers robustly
+
+
+def extract_first_number(x):
+    """
+    Extract the first numeric token from x (handles commas & dots).
+    Returns float or np.nan.
+    """
+    if x is None:
+        return np.nan
+    try:
+        s = str(x)
+    except Exception:
+        return np.nan
+    # Quick guard for explicit NaN strings
+    if s.lower() in ['nan', 'none', 'na', '']:
+        return np.nan
+
+    # Find groups like 1,234.56 or 1234,56 or 1234 or 4.9
+    match = re.search(r'(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+(?:[.,]\d+)?)', s)
+    if not match:
+        return np.nan
+    num_str = match.group(0)
+
+    # Normalize: if both comma and dot present assume dot is decimal only when dot occurs after comma? Simpler approach:
+    # Remove thousands separators (commas) and replace comma decimal with dot
+    # Cases: "1,234.56" -> remove comma -> 1234.56
+    #        "1.234,56" -> replace '.' thousands and ',' decimal -> 1234.56 (we handle by removing dots, then replacing comma)
+    if num_str.count('.') > 1 and num_str.count(',') == 0:
+        # unlikely but handle: keep first dot as decimal — fallback to removing non-digits except last dot
+        cleaned = re.sub(r'[^\d.]', '', num_str)
+    elif ',' in num_str and '.' in num_str:
+        # assume comma thousands, dot decimal: remove commas
+        cleaned = num_str.replace(',', '')
+    elif ',' in num_str and '.' not in num_str:
+        # could be European "1234,56" decimal — replace comma with dot
+        cleaned = num_str.replace('.', '').replace(',', '.')
+    else:
+        cleaned = num_str
+
+    try:
+        return float(cleaned)
+    except:
+        # as last resort remove non-digit and convert
+        cleaned2 = re.sub(r'[^\d.]', '', num_str)
+        try:
+            return float(cleaned2) if cleaned2 else np.nan
+        except:
+            return np.nan
+
+# Quick sanity check
+examples = ["610 km", "178 Wh/km", "108.7 kWh", "4.9 sec", "1,234", "1.234,56", "unknown", None]
+print({ex: extract_first_number(ex) for ex in examples})
+
+
+df
+
+
+
+
+
+# 🧾 Step 4 — Apply numeric extraction to candidate columns (preview & verify)
+**Why:** Convert textual numeric columns to floats, but first preview the extracted values to ensure the regex behaves as expected.
+
+
+# 🧾 Step 4 — Apply numeric extraction to candidate columns (preview & verify)
+# Why: Convert textual numeric columns to floats, applying smart scaling logic where needed.
+
+
+# --- Helper 1: Generic numeric extractor ---
+def extract_first_number(x):
+    """Extract first numeric value (supports commas, decimals, and signs)."""
+    if pd.isna(x):
+        return np.nan
+    # match numbers like 1,234.56 or 1234 or 1 234
+    match = re.search(r"(\d{1,3}(?:[,\s]\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)", str(x))
+    if match:
+        num_str = match.group(1).replace(",", "").replace(" ", "")
+        try:
+            return float(num_str)
+        except ValueError:
+            return np.nan
+    return np.nan
+
+# --- Helper 2: Extract proper year (4 digits only) ---
+def extract_year(x):
+    """Extracts a 4-digit year (1900–2099) from text."""
+    if pd.isna(x):
+        return np.nan
+    match = re.search(r"\b(19\d{2}|20\d{2})\b", str(x))
+    if match:
+        return float(match.group(1))
+    return np.nan
+
+# --- Helper 3: Column-aware scaler ---
+def smart_numeric_extractor(x, colname):
+    """Applies context-aware scaling based on column type."""
+    val = extract_first_number(x)
+    if pd.isna(val):
+        return np.nan
+
+    # Column-specific adjustments
+    if "weight" in colname.lower():
+        # Often shown as tons or truncated: e.g. 236 -> 2360
+        if val < 500:  # likely missing a zero
+            val *= 10
+        return val
+
+    if "towing" in colname.lower():
+        # 200 means 2000 in kg context
+        if val < 500:  # likely shortened (e.g., 200 -> 2000)
+            val *= 10
+        return val
+
+    if "price" in colname.lower():
+        # Often shortened (e.g., 689 -> 68989)
+        if val < 2000:
+            val = val * 100 + 89  # add realistic rounding
+        return val
+
+    return val  # default for others
+
+# --- Columns to clean and preview ---
+candidate_cols = [
+    "Range (km)", "Efficiency (Wh/km)", "Weight (kg)",
+    "Acceleration (0-100s)", "Battery (kWh)", "Fastcharge (kW)",
+    "Towing (kg)", "Cargo (L)", "Price (€)", "Year"
+]
+
+# Keep only those that exist in df
+candidate_cols = [c for c in candidate_cols if c in df.columns]
+print("Columns to clean:", candidate_cols)
+
+df
+
+# --- Preview numeric extraction (first 8 values per column) ---
+preview = {}
+for c in candidate_cols:
+    if c.lower().startswith("year"):
+        extracted = df[c].apply(extract_year)
+    else:
+        extracted = df[c].apply(lambda x: smart_numeric_extractor(x, c))
+    preview[c] = extracted.head(8)
+    print(f"\nColumn: {c}\nExtracted (first 8):\n{preview[c].to_string(index=False)}")
+
+df
+
+# --- Apply the cleaned values ---
+for c in candidate_cols:
+    if c.lower().startswith("year"):
+        df[c] = df[c].apply(extract_year)
+    else:
+        df[c] = df[c].apply(lambda x: smart_numeric_extractor(x, c))
+
+print("\n✅ Step 4 complete — All numeric columns extracted and scaled correctly.")
+display(df[candidate_cols].head(8))
+
+
+
+
+
+
+
+# ✅ Step 5 — Finalize numeric columns (rename and drop helpers)
+**Why:** Move cleaned numeric columns to final friendly names and remove temporary *_num columns. Keep originals if you want to compare later.
+
+
+# Map original candidate -> final column name
+col_map = {
+    "Range (km)_num": "Real-World Range (km)",
+    "Efficiency (Wh/km)_num": "Energy Efficiency (Wh/km)",
+    "Weight (kg)_num": "Vehicle Weight (kg)",
+    "Battery (kWh)_num": "Battery Capacity (kWh)",
+    "Fastcharge (kW)_num": "Fast Charging Speed (kW)",
+    "Cargo (L)_num": "Cargo Volume (L)",
+    "Price (€)_num": "Price (€)",
+    "Year_num": "Year"
+}
+
+# For acceleration and towing we used special final names above (if created)
+# Move values (if present) into df_final-style columns
+for tmp, final in col_map.items():
+    if tmp in df.columns:
+        df[final] = df[tmp]
+
+# If Acceleration or Towing created, ensure names consistent:
+if "Acceleration (0-100 km/h, sec)" in df.columns:
+    df["Acceleration (0-100 km/h, sec)"] = df["Acceleration (0-100 km/h, sec)"].astype(float)
+
+if "Towing Capacity (kg)" in df.columns:
+    df["Towing Capacity (kg)"] = pd.to_numeric(df["Towing Capacity (kg)"], errors="coerce")
+
+# Drop helper *_num columns to tidy up (only those that exist)
+for c in [c for c in df.columns if c.endswith("_num")]:
+    df.drop(columns=c, inplace=True)
+
+print("✅ Final numeric columns added. Example dtypes:")
+print(df.dtypes)
+
+
+
+
+# 🏷️ Step 6 — Extract Brand and Model from 'Car Name'
+**Why:** For brand-level analysis we need a robust `Brand` column. We must inspect examples of `Car Name` to pick the best extraction rule (brands can contain hyphens and non-ASCII characters).
+
+
+# Step 6: Preview a sample of Car Name strings to design extraction
+sample = df["Car Name"].dropna().sample(20, random_state=1) if df["Car Name"].notna().sum()>20 else df["Car Name"].dropna()
+print("Sample Car Name values for inspection:")
+for s in sample.head(20):
+    print("-", s)
+
+
+# -------------------------
+# Step 6.1: Brand (first token) + Model Name extraction
+# -------------------------
+
+# Preview a few original values for sanity
+print("Sample Car Name values for inspection:")
+print(df["Car Name"].head(20).to_list())
+
+# Extract Brand = first token up to first whitespace (keeps hyphens, special chars)
+df["Brand"] = df["Car Name"].str.extract(r"^([^\s]+)")
+
+# Helper to remove the brand prefix safely (handles special chars via re.escape)
+def remove_brand_prefix(name, brand):
+    try:
+        if pd.isna(name) or pd.isna(brand):
+            return name
+        pattern = r"^" + re.escape(str(brand)) + r"\s*"
+        return re.sub(pattern, "", str(name), flags=re.IGNORECASE)
+    except Exception:
+        return name
+
+# Create Model Name by removing the Brand token from the start of Car Name
+df["Model Name"] = df.apply(lambda x: remove_brand_prefix(x["Car Name"], x["Brand"]), axis=1)
+
+# Strip leading/trailing spaces
+df["Brand"] = df["Brand"].astype(str).str.strip()
+df["Model Name"] = df["Model Name"].astype(str).str.strip()
+
+# Preview results
+display(df[["Car Name", "Brand", "Model Name"]].head(20))
+
+
+
+
+# 🕒 Step 7 — Extract availability start & end years
+**Why:** Availability text contains one or two 4-digit years. We need the start year and (if present) end year. Keep logic explicit and handle 'Present' correctly.
+
+
+# Step 7: Extract all 4-digit years from Availability and assign start/end
+
+def extract_years(s):
+    if pd.isna(s): 
+        return (np.nan, np.nan)
+    years = re.findall(r'(\d{4})', str(s))
+    if len(years) == 0:
+        return (np.nan, np.nan)
+    start = int(years[0])
+    end = int(years[1]) if len(years) > 1 else np.nan
+    return (start, end)
+
+years = df["Availability"].apply(extract_years)
+df["Availability Start Year"] = [y[0] for y in years]
+df["Availability End Year"] = [y[1] for y in years]
+
+# If status text contains 'Available' but no end year, keep end year NaN -> meaning Present
+df["Vehicle Status"] = df["Availability"].apply(lambda x: "Available" if isinstance(x, str) and "Available" in x else "Discontinued")
+
+display(df[["Availability", "Vehicle Status", "Availability Start Year", "Availability End Year"]].head(8))
+
+
+
+
+# 🗂️ Step 8 — Remove duplicates (final dedupe)
+**Why:** After the cleaning steps above we must make sure each vehicle appears only once. Use unique identifier column `Car Name` (if that uniquely identifies a vehicle).
+
+
+# Step 8: Drop duplicates by Car Name (keep first)
+if "Car Name" in df.columns:
+    before = df.shape[0]
+    df = df.drop_duplicates(subset=["Car Name"], keep="first").reset_index(drop=True)
+    after = df.shape[0]
+    print(f"✅ Dropped duplicates: {before-after} rows removed. New shape: {df.shape}")
+else:
+    print("⚠️ 'Car Name' not in df; skipping dedupe.")
+
+
+df
+
+# 🧾 Step 9 — Convert dtypes & tidy column names 
+**Why:** Ensure numeric columns are `float`/`Int64`, text is string, and column names are presentation-friendly for EDA.
+
+
+# 🧾 Step 9 — Convert dtypes & tidy column names
+# Purpose: ensure numeric columns are of proper numeric dtype, and clean up text whitespace
+
+import pandas as pd
+import numpy as np
+
+numeric_cols_final = [
+    "Real-World Range (km)", 
+    "Energy Efficiency (Wh/km)", 
+    "Battery Capacity (kWh)",
+    "Vehicle Weight (kg)", 
+    "Acceleration (0-100 km/h, sec)", 
+    "Fast Charging Speed (kW)",
+    "Towing Capacity (kg)", 
+    "Cargo Volume (L)", 
+    "Price (€)", 
+    "Year",
+    "Availability Start Year", 
+    "Availability End Year"
+]
+
+# Convert to numeric safely (ignore if column missing)
+for c in numeric_cols_final:
+    if c in df.columns:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+
+# Convert year-like columns to nullable integer for better display
+for c in ["Year", "Availability Start Year", "Availability End Year"]:
+    if c in df.columns:
+        df[c] = df[c].astype("Int64")
+
+# Strip whitespace from text columns
+for c in df.select_dtypes(include="object").columns:
+    df[c] = df[c].str.strip()
+
+print("✅ dtypes after conversion:")
+print(df.dtypes)
+
+
+df
+
+df.dtypes
+
+
+
+
+
+
+
+# 🧹 Step 10 — Final Cleanup: Drop Redundant Columns & Reorder Cleanly
+
+
+# 🧹 Step 10 — Finalize DataFrame before saving
+# Purpose: drop redundant/raw scrape columns and reorder the final dataset neatly
+
+# Drop redundant or raw columns (only those that exist)
+cols_to_drop = [
+    "Car Name", "Body Type",
+    "Availability", "Page"
+]
+df = df.drop(columns=[c for c in cols_to_drop if c in df.columns], errors="ignore")
+
+# Final column order you requested
+final_columns = [
+    "Brand", "Model Name",
+    "Vehicle Status", "Year", "Availability Description",
+    "Availability Start Year", "Availability End Year",
+    "Range (km)", "Efficiency (Wh/km)","Battery (kWh)","Weight (kg)",
+    "Acceleration (0-100s)", "Fastcharge (kW)",
+    "Towing (kg)", "Cargo (L)", "Price (€)"
+]
+
+# Keep only columns that actually exist (avoids KeyError)
+df = df[[c for c in final_columns if c in df.columns]]
+
+# Final text cleanup
+for c in df.select_dtypes(include="object").columns:
+    df[c] = df[c].str.strip()
+
+print("✅ Final DataFrame shape:", df.shape)
+print("✅ Final columns:")
+print(df.columns.tolist())
+
+display(df.head(10))
+
+
+df
+
+df.columns
+
+### Rename columns to Meaningful Column Names in Data Frame
+
+# Rename technical column names to more meaningful ones
+rename_map = {
+    "Range (km)": "Real-World Range (km)",
+    "Efficiency (Wh/km)": "Energy Efficiency (Wh/km)",
+    "Battery (kWh)": "Battery Capacity (kWh)",
+    "Weight (kg)": "Vehicle Weight (kg)",
+    "Acceleration (0-100s)": "Acceleration (0-100 km/h, sec)",
+    "Fastcharge (kW)": "Fast Charging Speed (kW)",
+    "Towing (kg)": "Towing Capacity (kg)",
+    "Cargo (L)": "Cargo Volume (L)"
+}
+
+# Apply renaming only for columns that actually exist
+df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns}, inplace=True)
+
+print("✅ Column names renamed successfully.")
+print("Updated columns:\n", df.columns.tolist())
+
+
+df
+
+
+
+## 🚗 Final Dataset — Column Descriptions
+
+| **Column Name**                    | **Description**                                                                                              |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **Brand**                          | The car manufacturer or brand name (e.g., BMW, Tesla, Kia).                                                                       |
+| **Model Name**                     | The specific model and variant name of the vehicle. Sometimes includes battery or drive details (e.g., “Model 3 Long Range RWD”). |
+| **Vehicle Status**                 | Indicates whether the vehicle is **Available**, **Upcoming**, or **Discontinued**.                                                |
+| **Year**                           | The model year or main release year for the vehicle.                                                                              |
+| **Availability Start Year**        | The year when the model became available for sale or order.                                                                       |
+| **Availability End Year**          | The year when the model was discontinued (if applicable). Empty (NaN) means it’s still available.                                 |
+| **Real-World Range (km)**          | The practical driving range of the car (in kilometers) based on real-world tests, not ideal lab results.                          |
+| **Energy Efficiency (Wh/km)**      | How much energy the car uses per kilometer, in **watt-hours per kilometer**. Lower is better (more efficient).                    |
+| **Battery Capacity (kWh)**         | The size of the battery pack, measured in **kilowatt-hours (kWh)** — higher capacity means longer range.                          |
+| **Vehicle Weight (kg)**            | The total weight of the car (in kilograms).                                                                                       |
+| **Acceleration (0-100 km/h, sec)** | How many seconds it takes the car to accelerate from **0 to 100 km/h** — lower values mean faster acceleration.                   |
+| **Fast Charging Speed (kW)**       | The maximum rate at which the car can charge using a DC fast charger (in **kilowatts**).                                          |
+| **Towing Capacity (kg)**           | The maximum weight the car can tow (in kilograms).                                                                                |
+| **Cargo Volume (L)**               | The total available cargo or trunk space (in **liters**).                                                                         |
+| **Price (€)**                      | The base or starting price of the vehicle, shown in **euros (€)**.                                                                |
+
+
+
+
+
+
+# 🧾 Step 11 — Save Cleaned Dataset
+
+
+
+output_path = r"C:\Users\kishore\OneDrive\Desktop\Web scrapping_REGEX\webscrapping_project\webscraping\EV_Data_Cleaned.csv"
+df.to_csv(output_path, index=False, encoding='utf-8-sig')
+
+print(f"\n✅ Cleaned dataset saved successfully at:\n{output_path}")
+
+df
+
+
+
+
+
+
+
+
+
+
+
+" and this is EDA ipynb file where I done all the cleaning and visualisations on the dataset which I got after doing webscrapping "# 🧭 Exploratory Data Analysis (EDA) — Electric Vehicle Dataset
+
+
+
+## 🧩 Problem Statement — Electric Vehicle Market and Performance Analysis
+
+### **Objective**
+
+The electric vehicle (EV) industry is growing rapidly, with new models entering the market each year that vary in price, performance, and efficiency. Understanding how different specifications — such as **battery capacity**, **range**, **efficiency**, and **acceleration** — influence the **market price** can help both manufacturers and consumers make data-driven decisions.
+
+This project aims to **analyze and interpret relationships between EV performance metrics and pricing**, identifying which factors most strongly affect an EV’s market value.
+
+---
+
+### **🎯 Target Feature**
+
+- **Target Variable:** `Price (€)`  
+  Represents the **market price** of each electric vehicle model.  
+  It serves as the dependent variable in our analysis, reflecting the combined impact of performance, efficiency, brand, and design factors.
+
+---
+
+### **🔍 Predictor Features (Independent Variables)**
+
+#### ⚡ **Performance and Efficiency**
+- `Battery Capacity (kWh)` — Determines how much energy the EV can store; typically a major driver of price and range.  
+- `Real-World Range (km)` — Indicates the actual driving distance on a full charge; influenced by battery size and efficiency.  
+- `Energy Efficiency (Wh/km)` — Measures energy usage per km; lower values mean better efficiency.  
+- `Acceleration (0-100 km/h, sec)` — Represents performance; sports EVs generally have faster acceleration.  
+- `Fast Charging Speed (kW)` — Reflects how quickly a vehicle can recharge; a key technological feature.
+
+#### 🧰 **Design and Utility**
+- `Vehicle Weight (kg)` — Affects energy consumption and handling.  
+- `Towing Capacity (kg)` — Indicates power and structure robustness.  
+- `Cargo Volume (L)` — Adds to vehicle practicality and consumer appeal.
+
+#### 🏢 **Brand and Market Attributes**
+- `Brand` — Brand reputation and innovation influence EV value.  
+- `Vehicle Status` — Whether a model is **Available** or **Discontinued**, showing market evolution.  
+- `Availability Start Year` / `Availability End Year` — Capture model age and production cycle.
+
+---
+
+### **🧠 Problem Definition**
+> To analyze and predict **electric vehicle pricing** using performance, efficiency, and brand-based features, and uncover the key factors that most influence EV market value.
+
+---
+
+### **🔬 Analytical Approach**
+- Perform **Exploratory Data Analysis (EDA)** to understand feature distributions and correlations.  
+- Compare **brand-level and performance-based insights**.  
+- Visualize **relationships between numerical and categorical variables**.  
+
+
+
+
+## 🧩 Step 1 — Import Required Libraries
+
+#### Before starting EDA, import all essential Python libraries for data analysis and visualization.
+
+from IPython.core.interactiveshell import InteractiveShell
+InteractiveShell.ast_node_interactivity = 'all'
+
+
+
+import numpy as np
+import pandas as pd
+import os
+import matplotlib.pyplot as plt
+import seaborn as sns
+import scipy.stats as stats
+
+from datetime import datetime
+import missingno as msno
+
+import warnings
+warnings.filterwarnings('ignore')
+
+
+plt.style.use('bmh')
+sns.set(style="whitegrid", palette="coolwarm")
+
+
+
+## 📂 Step 2 — Load and Inspect the Dataset
+
+#### Let’s load the cleaned dataset (EV_Data_Cleaned.csv) from the web scraping phase and check its structure.
+
+# Load dataset
+df = pd.read_csv(r"C:\Users\kishore\OneDrive\Desktop\Web scrapping_REGEX\webscrapping_project\webscraping\EV_Data_Cleaned.csv")
+
+# Overview
+print("✅ Dataset Loaded Successfully")
+print("Shape:", df.shape)
+df.head()
+
+
+
+
+### 🚗 Final Dataset — Column Descriptions
+
+| **Column Name**                    | **Description**                                                                                              |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **Brand**                          | The car manufacturer or brand name (e.g., BMW, Tesla, Kia).                                                                       |
+| **Model Name**                     | The specific model and variant name of the vehicle. Sometimes includes battery or drive details (e.g., “Model 3 Long Range RWD”). |
+| **Vehicle Status**                 | Indicates whether the vehicle is **Available**, **Upcoming**, or **Discontinued**.                                                |
+| **Year**                           | The model year or main release year for the vehicle.                                                                              |
+| **Availability Start Year**        | The year when the model became available for sale or order.                                                                       |
+| **Availability End Year**          | The year when the model was discontinued (if applicable). Empty (NaN) means it’s still available.                                 |
+| **Real-World Range (km)**          | The practical driving range of the car (in kilometers) based on real-world tests, not ideal lab results.                          |
+| **Energy Efficiency (Wh/km)**      | How much energy the car uses per kilometer, in **watt-hours per kilometer**. Lower is better (more efficient).                    |
+| **Battery Capacity (kWh)**         | The size of the battery pack, measured in **kilowatt-hours (kWh)** — higher capacity means longer range.                          |
+| **Vehicle Weight (kg)**            | The total weight of the car (in kilograms).                                                                                       |
+| **Acceleration (0-100 km/h, sec)** | How many seconds it takes the car to accelerate from **0 to 100 km/h** — lower values mean faster acceleration.                   |
+| **Fast Charging Speed (kW)**       | The maximum rate at which the car can charge using a DC fast charger (in **kilowatts**).                                          |
+| **Towing Capacity (kg)**           | The maximum weight the car can tow (in kilograms).                                                                                |
+| **Cargo Volume (L)**               | The total available cargo or trunk space (in **liters**).                                                                         |
+| **Price (€)**                      | The base or starting price of the vehicle, shown in **euros (€)**.                                                                |
+
+
+
+
+## 🧾 Step 3 — Dataset Overview and Summary Statistics
+
+#### Understand dataset structure: column data types, null values, and statistical summary of numerical and categorical features.
+
+df.info()
+print("\nMissing Values:\n", df.isna().sum())
+df.describe(include='all').T
+
+
+### 🧠 Observation:
+
+- From this, we can identify which features are categorical, which are numerical, and where data cleaning or imputation may still be required.
+
+
+
+## 🧹 Step 4 — Handle Missing Values
+
+#### Missing values may exist in attributes such as Availability End Year, Towing Capacity (kg), or Cargo Volume (L).
+We can impute or retain them depending on the meaning (e.g., if a car is “Available”, missing end year means it’s still in production).
+
+# Check missing value %
+missing = (df.isna().sum() / len(df)) * 100
+print("Missing Values (%):\n", missing)
+
+# Impute meaningful missing values
+df.loc[(df["Vehicle Status"] == "Available") & (df["Availability End Year"].isna()), "Availability End Year"] = 2025
+
+df["Towing Capacity (kg)"].fillna(df["Towing Capacity (kg)"].median(), inplace=True)
+df["Cargo Volume (L)"].fillna(df["Cargo Volume (L)"].median(), inplace=True)
+
+print("\n ======================= After handling Nulls ======================= \n")
+
+df.isna().sum()
+
+
+
+
+
+
+
+# 🧩 Step — Define a Save Path
+
+import os
+
+# Define your save directory
+save_path = r"C:\Users\kishore\OneDrive\Desktop\Web scrapping_REGEX\webscrapping_project\eda\images"
+
+# Create folder if it doesn't exist
+os.makedirs(save_path, exist_ok=True)
+
+
+
+
+# 🔍 Part 1 — Univariate Analysis
+
+## 📊 Step 5 — Categorical Features
+
+#### 🎯 Objective: Univariate Analysis (Brand Distribution)
+
+The objective of this step is to understand the **distribution of EV models across different brands** and identify the **dominant players** in the market.  
+By analyzing brand frequency and market share, we can uncover:
+- Which brands contribute the most to the EV lineup  
+- The degree of **market concentration** vs **diversification**  
+- How established automakers compare to emerging EV manufacturers  
+
+We use **bar plots** and **pie charts** to visualize brand share, helping to highlight the **competitive structure** and **market fragmentation** in the EV industry.
+
+
+# Step 5 — Univariate Analysis: Brand Distribution (Top 15 + Others)
+
+brand_counts = df['Brand'].value_counts()
+top_n = 15
+
+# Combine top N and 'Others'
+top_brands = brand_counts.head(top_n)
+others_sum = brand_counts[top_n:].sum()
+top_brands['Others'] = others_sum
+
+# Convert to DataFrame for easier plotting
+brand_df = top_brands.reset_index()
+brand_df.columns = ['Brand', 'Count']
+brand_df['Percentage'] = (brand_df['Count'] / df['Brand'].shape[0] * 100).round(2)
+
+plt.figure(figsize=(12,7))
+sns.barplot(
+    data=brand_df, 
+    x='Count', 
+    y='Brand', 
+    palette='mako',
+    edgecolor='black'
+)
+
+# Annotate counts and percentages on bars
+for index, value in enumerate(brand_df['Count']):
+    plt.text(value + 5, index, f"{value} ({brand_df['Percentage'][index]}%)", va='center')
+
+plt.title('Top 15 EV Brands + Others (Distribution)', fontsize=14, fontweight='bold')
+plt.xlabel('Number of Models', fontsize=12)
+plt.ylabel('Brand', fontsize=12)
+plt.grid(axis='x', linestyle='--', alpha=0.6)
+plt.tight_layout()
+
+plt.tight_layout()
+plt.savefig(os.path.join(save_path, "step5_brand_distribution_barplot.png"), dpi=300, bbox_inches='tight')
+plt.show();
+
+
+# Observation
+top_3 = brand_df.head(3)
+print("Top 3 Brands by EV count:")
+display(top_3)
+
+
+
+
+plt.figure(figsize=(8,8))
+plt.pie(
+    brand_df['Count'],
+    labels=brand_df['Brand'],
+    autopct='%1.1f%%',
+    startangle=140,
+    colors=sns.color_palette('husl', len(brand_df))
+)
+plt.title('EV Market Share by Brand (Top 15 + Others)', fontsize=14)
+plt.tight_layout()
+plt.savefig(os.path.join(save_path, "step5_brand_distribution_PieChart.png"), dpi=300, bbox_inches='tight')
+plt.show()
+
+
+
+## 📊 Brand Distribution Analysis — Key Insights (Brief)
+
+- **Market Leaders:** Mercedes-Benz (8%), Volkswagen (7%), and Tesla (6.5%) lead the EV market — together contributing over **20% of total models**.  
+- **Top 10 brands** capture ~50% of the market, showing moderate **concentration** among established automakers.  
+- **European dominance:** Strong presence of German and French brands (Mercedes, VW, Audi, BMW, Peugeot, Renault, Citroën).  
+- **Fragmented tail:** “Others” category forms ~36% of the market, reflecting **many small players** and ongoing diversification.  
+- **Healthy competition:** No single brand monopolizes; traditional and new EV makers coexist actively.  
+
+> **Summary:** The EV market is competitive, with established European leaders at the top and a long tail of emerging brands — a hallmark of an expanding and innovative industry.
+
+
+
+
+## 📊 Step 6 — Univariate Numerical Analysis: Distribution, Outliers & Correlations
+
+### 🎯 Objective
+To understand how each **numerical feature** in the EV dataset is distributed, detect **outliers**, and examine **relationships** among the variables.  
+We used:
+- **Histograms with KDE (Kernel Density Estimation)** — to visualize data distribution and skewness.  
+- **Boxplots** — to identify outliers using the IQR (Interquartile Range) method.  
+- **Correlation Heatmap** — to analyze pairwise relationships between numerical features using the **Pearson correlation coefficient**.
+
+# Select only numeric columns
+numeric_cols = df.select_dtypes(include=[np.number]).columns
+print(f"📈 Found {len(numeric_cols)} numerical columns for analysis")
+
+# ---------- 🔹 Part 1: Distribution and Boxplots ----------
+for col in numeric_cols:
+    plt.figure(figsize=(12, 5))
+
+    # Histogram with KDE curve
+    plt.subplot(1, 2, 1)
+    sns.histplot(df[col], bins=30, kde=True, color='skyblue')
+    plt.title(f"Distribution of {col}")
+    plt.xlabel(col)
+    plt.ylabel("Frequency")
+
+    # Boxplot for outlier detection
+    plt.subplot(1, 2, 2)
+    sns.boxplot(x=df[col], color='lightcoral')
+    plt.title(f"Boxplot of {col}")
+    plt.xlabel(col)
+
+    plt.tight_layout()
+
+    # ✅ Save each feature’s figure separately
+    filename = f"step6_distribution_boxplot_{col.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')}.png"
+    plt.savefig(os.path.join(save_path, filename), dpi=300, bbox_inches='tight')
+
+    plt.show()
+
+
+# ---------- 🔹 Part 2: Correlation Heatmap ----------
+plt.figure(figsize=(10, 6))
+corr = df[numeric_cols].corr()
+sns.heatmap(corr, annot=True, cmap='coolwarm', fmt=".2f")
+plt.title("Correlation Heatmap of Numerical Features", fontsize=14, fontweight='bold')
+
+# ✅ Save correlation heatmap
+plt.savefig(os.path.join(save_path, "step6_correlation_heatmap.png"), dpi=300, bbox_inches='tight')
+plt.show()
+
+
+# ---------- 🔹 Part 3: Identify Strong Correlations ----------
+print("\n🔗 Strong Correlations (|r| > 0.7):\n")
+strong_corrs = []
+for i in range(len(corr.columns)):
+    for j in range(i+1, len(corr.columns)):
+        if abs(corr.iloc[i, j]) > 0.7:
+            relation = "positive" if corr.iloc[i, j] > 0 else "negative"
+            msg = f"• {corr.columns[i]} ↔ {corr.columns[j]} : {corr.iloc[i, j]:.2f} ({relation})"
+            print(msg)
+            strong_corrs.append(msg)
+
+# ✅ Save text summary of strong correlations to file (optional but useful)
+if strong_corrs:
+    with open(os.path.join(save_path, "step6_strong_correlations_summary.txt"), "w", encoding="utf-8") as f:
+        f.write("Strong Correlations (|r| > 0.7)\n")
+        f.write("\n".join(strong_corrs))
+    print(f"\n📁 Strong correlation summary saved to: {save_path}")
+
+
+### 📈 Key Observations
+
+#### 1. Distribution Insights
+- **Price (€):** Right-skewed distribution, indicating most EVs are mid-priced, with fewer high-end luxury models above €80,000.  
+- **Real-World Range (km):** Roughly normal distribution centered around **375 km**, showing most EVs fall between **300–450 km** range.  
+- **Battery Capacity (kWh):** Concentrated around **70–80 kWh**, with a few large-capacity models (100 kWh +).  
+- **Energy Efficiency (Wh/km):** Mostly between **170–210 Wh/km** — lower values indicate higher efficiency.  
+- **Acceleration (0–100 km/h, sec):** Negatively skewed; most EVs accelerate between **5–8 seconds**, while high-performance models drop below 4 s.  
+- **Fast-Charging Speed (kW):** Slightly right-skewed; common speeds range between **100–150 kW**, with a few ultra-fast chargers above 250 kW.  
+
+These patterns suggest a mature market distribution — dominated by efficient, mid-range EVs rather than extreme outliers.
+
+---
+
+#### 2. Outlier Detection (via Boxplots)
+- **Price, Battery Capacity, and Fast-Charging Speed** show visible outliers, representing luxury or performance-oriented vehicles (e.g., Tesla Model S, Lucid Air).  
+- **Energy Efficiency** and **Range** display minimal outliers, indicating standardized energy performance across models.  
+- Outliers are expected in automotive datasets due to premium and budget segments — **not necessarily errors**.
+
+---
+
+#### 3. Correlation Insights (Pearson Method)
+- **Battery Capacity ↔ Real-World Range:** Strong **positive correlation (~ 0.9)** — larger batteries lead to longer range.  
+- **Battery Capacity ↔ Fast-Charging Speed:** Moderate **positive correlation (~ 0.75)** — larger packs often support faster charging.  
+- **Range ↔ Acceleration:** **Negative correlation (~ –0.7)** — faster cars (lower 0–100 s) tend to have shorter ranges due to higher power demand.  
+- **Price ↔ Range/Battery:** Weak positive correlation — higher-priced EVs *tend* to have better specs, but not always directly proportional.  
+
+---
+
+### 🧠 Summary
+This univariate analysis reveals:
+- Balanced numeric distributions for most technical attributes.  
+- A few expected high-end outliers in premium EVs.  
+- Clear physical relationships between **battery, range, and performance** confirmed through correlation analysis.  
+
+Overall, this step helps validate data integrity and provides a strong foundation for **bivariate and multivariate exploration** in the next steps.
+
+
+
+
+
+# 🔗 Part 2 — Bivariate Analysis
+
+## 🔬 STEP 7: Continuous vs Continuous Analysis
+
+
+#### 🎯 Objective: Continuous vs Continuous Analysis
+
+The goal of this step is to explore **relationships between numerical EV performance features**, such as battery capacity, range, charging speed, acceleration, and price.  
+By using **correlation heatmaps** and **scatterplots with regression lines**, we aim to:
+
+- Identify **strong positive or negative correlations** between key metrics.  
+- Understand **how battery size, range, and acceleration interact** in electric vehicles.  
+- Detect trade-offs (e.g., between speed and efficiency) and performance patterns across the EV dataset.  
+
+This step helps uncover **engineering and market insights** behind EV performance characteristics.
+
+
+print("🔗 STEP 7: Continuous vs Continuous Analysis\n")
+
+# Select key numeric features
+num_cols = [
+    "Price (€)", 
+    "Real-World Range (km)", 
+    "Battery Capacity (kWh)", 
+    "Energy Efficiency (Wh/km)",
+    "Fast Charging Speed (kW)",
+    "Acceleration (0-100 km/h, sec)"
+]
+
+# --- 1️⃣ Correlation Heatmap ---
+plt.figure(figsize=(10,6))
+sns.heatmap(df[num_cols].corr(), annot=True, cmap="coolwarm", fmt=".2f", linewidths=0.5)
+plt.title("Correlation Heatmap of EV Numerical Features", fontsize=14, fontweight='bold')
+
+# ✅ Save correlation heatmap
+plt.savefig(os.path.join(save_path, "step7_correlation_heatmap.png"), dpi=300, bbox_inches='tight')
+plt.show()
+
+
+# --- 2️⃣ Focused Scatterplots for Strong Correlations ---
+plt.figure(figsize=(14,12))
+
+# 1. Battery Capacity vs Real-World Range
+plt.subplot(3,2,1)
+sns.scatterplot(data=df, x="Battery Capacity (kWh)", y="Real-World Range (km)", color='steelblue', alpha=0.7)
+sns.regplot(data=df, x="Battery Capacity (kWh)", y="Real-World Range (km)", scatter=False, color='red')
+plt.title("Battery Capacity vs Real-World Range (+0.90 correlation)")
+
+# 2. Battery Capacity vs Fast Charging Speed
+plt.subplot(3,2,2)
+sns.scatterplot(data=df, x="Battery Capacity (kWh)", y="Fast Charging Speed (kW)", color='purple', alpha=0.7)
+sns.regplot(data=df, x="Battery Capacity (kWh)", y="Fast Charging Speed (kW)", scatter=False, color='red')
+plt.title("Battery Capacity vs Fast Charging Speed (+0.75 correlation)")
+
+# 3. Range vs Fast Charging Speed
+plt.subplot(3,2,3)
+sns.scatterplot(data=df, x="Real-World Range (km)", y="Fast Charging Speed (kW)", color='teal', alpha=0.7)
+sns.regplot(data=df, x="Real-World Range (km)", y="Fast Charging Speed (kW)", scatter=False, color='red')
+plt.title("Real-World Range vs Fast Charging Speed (+0.72 correlation)")
+
+# 4. Acceleration vs Range
+plt.subplot(3,2,4)
+sns.scatterplot(data=df, x="Acceleration (0-100 km/h, sec)", y="Real-World Range (km)", color='orange', alpha=0.7)
+sns.regplot(data=df, x="Acceleration (0-100 km/h, sec)", y="Real-World Range (km)", scatter=False, color='red')
+plt.title("Acceleration vs Real-World Range (−0.74 correlation)")
+
+# 5. Acceleration vs Battery Capacity
+plt.subplot(3,2,5)
+sns.scatterplot(data=df, x="Acceleration (0-100 km/h, sec)", y="Battery Capacity (kWh)", color='brown', alpha=0.7)
+sns.regplot(data=df, x="Acceleration (0-100 km/h, sec)", y="Battery Capacity (kWh)", scatter=False, color='red')
+plt.title("Acceleration vs Battery Capacity (−0.69 correlation)")
+
+# 6. Price vs Range
+plt.subplot(3,2,6)
+sns.scatterplot(data=df, x="Price (€)", y="Real-World Range (km)", color='green', alpha=0.7)
+sns.regplot(data=df, x="Price (€)", y="Real-World Range (km)", scatter=False, color='red')
+plt.title("Price vs Real-World Range (+0.10 correlation)")
+
+plt.tight_layout()
+
+# ✅ Save all scatterplots as one combined image
+plt.savefig(os.path.join(save_path, "step7_scatter_relationships.png"), dpi=300, bbox_inches='tight')
+plt.show()
+
+
+### 📈 Observations from Correlation Analysis
+
+- **Battery Capacity ↔ Real-World Range (r = 0.90):**  
+  The strongest relationship — larger batteries directly lead to longer driving range.
+
+- **Battery Capacity ↔ Fast Charging Speed (r = 0.75):**  
+  Bigger batteries tend to support faster charging systems.
+
+- **Range ↔ Fast Charging Speed (r = 0.72):**  
+  Long-range EVs often come with higher charging speeds.
+
+- **Acceleration ↔ Range / Battery Capacity (r ≈ −0.7):**  
+  Faster cars (lower acceleration time) are typically less efficient and have smaller range.
+
+- **Price ↔ Range (r = 0.10):**  
+  Only a weak link — price doesn’t scale directly with range, possibly due to luxury brand pricing strategies.
+
+> **Summary:**  
+The EV market shows clear engineering patterns — larger batteries drive performance and charging speed, while speed performance comes at the cost of range and efficiency.
+
+
+
+
+## 🧩 Step 8 —  Continuous vs Categorical Analysis
+
+
+### 🎯 Objective: 
+
+The goal of this step is to explore how **numerical EV performance metrics** (like range, battery capacity, price, efficiency, and acceleration) vary across **different categories**, particularly:
+- **Vehicle Status** — comparing "Available" vs "Discontinued" models  
+- **Brand** — analyzing performance differences among the top EV manufacturers  
+
+We use **boxplots** to visualize distributions and **grouped summary statistics** (mean values) to quantify differences.  
+This helps identify **brand-level market positioning**, **performance trade-offs**, and how **availability status** reflects key specifications such as price, battery capacity, and range.
+
+
+print("📊 STEP 8: Continuous vs Categorical Analysis\n")
+
+# Define continuous and categorical variables
+continuous_vars = [
+    'Price (€)', 
+    'Real-World Range (km)', 
+    'Battery Capacity (kWh)', 
+    'Energy Efficiency (Wh/km)', 
+    'Acceleration (0-100 km/h, sec)'
+]
+
+categorical_vars = ['Vehicle Status', 'Brand']
+
+# --- 1️⃣ Compare Continuous Features by Vehicle Status ---
+plt.figure(figsize=(16, 10))
+for i, var in enumerate(continuous_vars, 1):
+    plt.subplot(2, 3, i)
+    sns.boxplot(data=df, x='Vehicle Status', y=var, palette='Set2')
+    plt.title(f"{var} by Vehicle Status")
+    plt.xlabel("")
+    plt.ylabel(var)
+
+plt.tight_layout()
+plt.suptitle("Continuous Variables by Vehicle Status", fontsize=16, fontweight='bold', y=1.02)
+
+# ✅ Save the figure
+plt.savefig(os.path.join(save_path, "step8_boxplots_vehicle_status.png"), dpi=300, bbox_inches='tight')
+plt.show()
+
+
+# --- 2️⃣ Compare Continuous Features by Top 8 Brands ---
+top_brands = df['Brand'].value_counts().head(8).index
+df_top = df[df['Brand'].isin(top_brands)]
+
+plt.figure(figsize=(18, 12))
+for i, var in enumerate(continuous_vars[:4], 1):
+    plt.subplot(2, 2, i)
+    sns.boxplot(data=df_top, x='Brand', y=var, palette='coolwarm')
+    plt.title(f"{var} by Brand")
+    plt.xlabel("")
+    plt.ylabel(var)
+    plt.xticks(rotation=45)
+
+plt.tight_layout()
+plt.suptitle("Key Performance Metrics by Top 8 EV Brands", fontsize=16, fontweight='bold', y=1.02)
+
+# ✅ Save the figure
+plt.savefig(os.path.join(save_path, "step8_boxplots_brands.png"), dpi=300, bbox_inches='tight')
+plt.show()
+
+
+# --- 3️⃣ Grouped Summary Statistics ---
+print("\n📈 Average Metrics by Vehicle Status:\n")
+status_summary = df.groupby('Vehicle Status')[continuous_vars].mean().round(2)
+display(status_summary)
+
+print("\n📊 Average Metrics by Top 8 Brands:\n")
+brand_summary = df_top.groupby('Brand')[continuous_vars].mean().round(2)
+display(brand_summary)
+
+
+### 📊 Step 8 — Observations: Continuous vs Categorical Analysis
+
+### 🚘 **1. Insights from Brand-wise Averages**
+
+Based on the aggregated metrics for the top EV brands:
+
+| Brand | Avg. Price (€) | Avg. Range (km) | Avg. Battery (kWh) | Avg. Efficiency (Wh/km) | Avg. Acceleration (sec) |
+|:------|---------------:|----------------:|-------------------:|------------------------:|-------------------------:|
+| Audi | 57,078 | 442 | 85.4 | 195.6 | 5.7 |
+| BMW | 49,157 | 419 | 77.1 | 182.1 | 5.5 |
+| Ford | 62,150 | 381 | 76.4 | 202.8 | 6.4 |
+| Mercedes-Benz | 50,140 | 439 | 86.6 | 203.7 | 6.9 |
+| Peugeot | 46,389 | 272 | 54.7 | 206.8 | 11.1 |
+| Tesla | 46,092 | 437 | 78.7 | 181.3 | 4.6 |
+| Volkswagen | 54,432 | 380 | 70.6 | 191.1 | 7.8 |
+| Volvo | 58,803 | 394 | 78.7 | 199.8 | 5.9 |
+
+---
+
+### ⚙️ **Performance & Efficiency Trends**
+
+- **Tesla, Mercedes-Benz** and **Audi** lead the market in **range** (~ 440 km) while maintaining **excellent efficiency** (~180–196 Wh/km).  
+- **Peugeot** is the most **budget- and efficiency-oriented**, but offers the **lowest range** (≈270 km) and **slowest acceleration** (~11 sec).  
+- **Luxury brands** (Audi, Mercedes-Benz, Volvo) maintain **larger battery packs** (~80–87 kWh) for long-range capability, consistent with premium EV positioning.  
+- **Ford** shows **higher prices** (€62 K on avg) despite moderate range (381 km), suggesting strong brand pricing or high-end trims.
+
+---
+
+### ⚡ **Speed vs Energy Use**
+
+- **Acceleration** and **efficiency** are **inversely related** — faster cars like **Tesla (4.5 s)** and **BMW (5.5 s)** consume slightly more energy but offer superior performance.
+- **Peugeot’s high efficiency (206 Wh/km)** aligns with lower power output and longer acceleration times — typical of entry-level EVs.
+
+---
+
+### 💶 **Price vs Performance Relationship**
+
+- There’s a **moderate positive correlation** between **price** and **battery size/range** — higher-priced models tend to feature larger batteries and longer ranges.
+- However, **Tesla** stands out by offering **premium performance at a relatively lower price point**, suggesting strong value efficiency.
+
+---
+
+### 🧭 **Summary**
+
+This brand-level analysis (using **mean aggregation** and **boxplots**) highlights clear **market segmentation**:
+- **Performance Leaders:** Tesla, Audi, BMW  
+- **Luxury Efficiency:** Mercedes-Benz, Volvo  
+- **Mass-Market Efficiency:** Peugeot, Volkswagen  
+- **High-Priced Moderate Range:** Ford  
+
+> **In essence**, the EV market reveals a trade-off between **price, range, and acceleration**, with Tesla and German automakers maintaining the best overall balance between **power, efficiency, and value.**
+
+
+
+
+
+## 🧮 STEP 8.1 — Pivot Table Analysis (for Deeper Categorical Insights)
+
+#### 🎯 Objective: Pivot Table Analysis (Brand vs Vehicle Status)
+
+The objective of this step is to perform a **multi-dimensional analysis** using pivot tables to explore how electric vehicle (EV) performance and pricing metrics vary across **different brands** and **vehicle availability statuses**.
+
+Unlike simple `groupby()` summaries, pivot tables allow us to:
+- Compare **multiple metrics simultaneously** across categories.
+- Observe patterns between **brands** and their **"Available" vs "Discontinued"** models.
+- Identify **brand-level strengths** in pricing, battery capacity, range, and acceleration.
+- Detect **market trends**, such as premium vs affordable EV positioning and performance consistency.
+
+This approach provides a structured overview of brand competitiveness and helps uncover **hidden categorical relationships** within the EV dataset.
+
+
+print("\n📊 STEP 8.1: Pivot Table Analysis — Brand vs Vehicle Status\n")
+
+# --- Create a pivot table to compare mean values across categories ---
+pivot_table = pd.pivot_table(
+    df,
+    values=['Price (€)', 'Real-World Range (km)', 'Battery Capacity (kWh)', 'Acceleration (0-100 km/h, sec)'],
+    index='Brand',
+    columns='Vehicle Status',
+    aggfunc='mean'
+).round(2)
+
+# Display neatly
+display(pivot_table.head(10))
+
+# --- Visualize one metric from the pivot table for clarity ---
+plt.figure(figsize=(12,6))
+pivot_price = pivot_table['Price (€)'].sort_values(by='Available', ascending=False).head(10)
+pivot_price.plot(kind='bar', color=['#2E8B57', '#FF6B6B'])
+plt.title("Average Price (€) by Brand and Vehicle Status", fontsize=14, fontweight='bold')
+plt.xlabel("Brand")
+plt.ylabel("Average Price (€)")
+plt.xticks(rotation=45)
+plt.tight_layout()
+
+# ✅ Save the figure
+plt.savefig(os.path.join(save_path, "step8.1_pivotTable_price_brand_status.png"), dpi=300, bbox_inches='tight')
+
+plt.show()
+
+
+## 🔎 Observations from Pivot Table Analysis
+
+### 🏷️ Brand vs Vehicle Status Insights
+- **Premium brands** like **Mercedes-Benz**, **Audi**, and **Volvo** maintain **higher average prices (€50,000–€60,000)**, indicating their strong positioning in the luxury EV segment.
+- **Mid-range brands** such as **Tesla**, **BMW**, and **Volkswagen** balance **price and range**, offering competitive performance around **400–450 km** range per charge.
+- **Peugeot** and other compact EV brands display **lower ranges (≈270 km)** and **smaller battery capacities**, aligning with their focus on urban or economy markets.
+
+### ⚡ Performance and Market Trends
+- **Available models** tend to have **higher battery capacity** and **faster acceleration**, reflecting technological upgrades in newer EVs.
+- **Discontinued vehicles** often show **lower range** and **slower acceleration**, implying phasing out of older or less efficient models.
+- **Battery capacity** and **range** exhibit a **strong positive relationship**, confirming that larger batteries consistently deliver longer real-world driving distances.
+
+### 💡 Strategic Takeaways
+- Brands like **Tesla** and **BMW** demonstrate **optimized performance-to-price ratios**, balancing range, acceleration, and cost effectively.
+- The **pivot visualization** highlights **market maturity** — luxury brands retain value leadership, while newer entrants compete through range and technology improvements.
+- **Continuous innovation** is evident in available models, which outperform discontinued ones across nearly all technical metrics.
+
+> **Summary:**  
+> The pivot analysis reveals clear segmentation within the EV market — premium brands dominate price and performance, while mid-tier manufacturers focus on practicality and efficiency. The distinction between available and discontinued models showcases ongoing technological evolution and competitive dynamics in the EV industry.
+
+
+
+
+
+
+## 🧮 Step 9 — Categorical vs Categorical (Crosstab Analysis)
+
+#### 🎯 Objective: Categorical vs Categorical Analysis  
+
+To explore the **relationship between two categorical variables — Brand and Vehicle Status (Available vs Discontinued)**, identifying how each brand maintains or retires its EV models.  
+This step uses **crosstab analysis** along with **heatmaps** and **stacked bar charts** to visualize brand-wise availability trends and market continuity patterns.
+
+
+print("📊 STEP 9: Categorical vs Categorical Analysis\n")
+
+# --- 1️⃣ Prepare Data ---
+top_brands = df['Brand'].value_counts().head(10).index
+df_top = df[df['Brand'].isin(top_brands)]
+
+# Crosstab counts
+crosstab_result = pd.crosstab(df_top['Brand'], df_top['Vehicle Status'])
+print("Crosstab (Counts):\n")
+print(crosstab_result)
+
+# Crosstab percentages
+crosstab_percent = pd.crosstab(df_top['Brand'], df_top['Vehicle Status'], normalize='index') * 100
+print("\nCrosstab (Percentage):\n")
+print(crosstab_percent.round(1))
+
+# --- 2️⃣ Visualization 1: Heatmap ---
+plt.figure(figsize=(10,6))
+sns.heatmap(crosstab_percent, annot=True, fmt=".1f", cmap="viridis")
+plt.title("Brand vs Vehicle Status (% Distribution)", fontsize=14, fontweight="bold")
+plt.xlabel("Vehicle Status")
+plt.ylabel("Brand")
+
+# ✅ Save the heatmap
+plt.savefig(os.path.join(save_path, "step9_brand_vs_status_heatmap.png"), dpi=300, bbox_inches='tight')
+plt.show()
+
+# --- 3️⃣ Visualization 2: Stacked Bar Chart ---
+ax = crosstab_percent.plot(
+    kind='bar', stacked=True, figsize=(10,6), 
+    colormap='Set2', edgecolor='black'
+)
+plt.title("Vehicle Status Distribution by Top 10 Brands", fontsize=14, fontweight="bold")
+plt.xlabel("Brand")
+plt.ylabel("Percentage (%)")
+plt.xticks(rotation=45)
+plt.legend(title="Vehicle Status")
+plt.tight_layout()
+
+# ✅ Save the stacked bar chart
+plt.savefig(os.path.join(save_path, "step9_brand_vs_status_stackedbar.png"), dpi=300, bbox_inches='tight')
+plt.show()
+
+
+### 🧮 Observations: Categorical vs Categorical Analysis
+
+### 📊 Overview  
+This step analyzed the **relationship between Brand and Vehicle Status (Available vs Discontinued)** using a **crosstab** and visualized it with a **heatmap** and a **stacked bar chart**.  
+The analysis helps reveal which brands maintain active production lines and which have discontinued more models.
+
+---
+
+### 🔍 Key Insights from Crosstab and Visuals
+
+- **Tesla** shows the **highest discontinuation rate**, with **79.4 %** of its models no longer available — indicating a rapid product refresh cycle or older model replacements.  
+- **Audi** leads in active availability, with **54.5 %** of its EV models still being produced.  
+- **Volkswagen**, **Mercedes-Benz**, and **Ford** display a **balanced 50 % available / 50 % discontinued** pattern — typical of brands continuously renewing their EV lineups.  
+- **BMW**, **Opel**, **Peugeot**, and **Škoda** have **slightly higher discontinuation ratios** (≈ 51–55 %), suggesting gradual phase-outs of earlier-generation EVs.  
+- **Volvo** maintains an even split (**50 % each**), consistent with its steady transition strategy toward electrification.
+
+---
+
+### 📈 Analytical Methods Used  
+- **Crosstab (pd.crosstab)** — computed both counts and percentage distributions of vehicles by status per brand.  
+- **Heatmap (Seaborn)** — visualized brand-wise availability intensity.  
+- **Stacked Bar Chart (Matplotlib)** — compared proportions of available vs discontinued models visually.
+
+---
+
+### 💡 Interpretation  
+Overall, the visualization shows a **healthy competitive landscape**:
+- Some brands (like **Audi & VW**) maintain ongoing EV production,  
+- Others (like **Tesla**) aggressively retire and replace models.  
+
+> **Summary:** The EV market demonstrates a mix of stability and innovation — brands are cycling through models quickly to integrate new technology, while traditional automakers maintain balanced portfolios of active and legacy EV models.
+
+
+
+
+
+
+# 📉 Part 3 — Multivariate Analysis
+
+## 🧭 Step 10 — Pairplot and Advanced Visuals
+
+### 🎯 Objective
+To analyze how multiple EV performance and pricing features interact together using **pairwise relationships**, **correlation heatmaps**, and **brand-based scatterplots** — identifying how **battery capacity, range, acceleration, and price** jointly influence electric vehicle performance and market segmentation.
+
+
+print("🎯 STEP 10: Multivariate Analysis — Understanding Multi-Feature Relationships\n")
+
+# 1️⃣ Create Price Segments for Better Visual Separation
+df["Price_Segment"] = pd.qcut(df["Price (€)"], q=3, labels=["Budget", "Mid-Range", "Premium"])
+
+# 2️⃣ Choose key numeric features for pairwise exploration
+key_features = [
+    "Price (€)", 
+    "Real-World Range (km)", 
+    "Battery Capacity (kWh)", 
+    "Energy Efficiency (Wh/km)", 
+    "Acceleration (0-100 km/h, sec)"
+]
+
+# 3️⃣ Pairplot to visualize relationships across multiple variables
+pairplot = sns.pairplot(
+    df[key_features + ["Price_Segment"]],
+    hue="Price_Segment",
+    palette="viridis",
+    diag_kind="kde",
+    corner=True
+)
+pairplot.fig.suptitle("Pairwise Relationships among Key EV Features by Price Segment", 
+                      fontsize=14, fontweight='bold', y=1.02)
+
+# ✅ Save Pairplot
+pairplot.savefig(os.path.join(save_path, "step10_pairplot_price_segments.png"), dpi=300, bbox_inches='tight')
+plt.show()
+
+# 4️⃣ Correlation Heatmap for the same features
+plt.figure(figsize=(10,6))
+sns.heatmap(df[key_features].corr(), annot=True, cmap="coolwarm", fmt=".2f")
+plt.title("Correlation Heatmap — Multivariate Relationships", fontsize=14, fontweight='bold')
+
+# ✅ Save Heatmap
+plt.savefig(os.path.join(save_path, "step10_correlation_heatmap_multivariate.png"), dpi=300, bbox_inches='tight')
+plt.show()
+
+# 5️⃣ Scatter relationships with brand context
+top_brands = df['Brand'].value_counts().head(5).index
+df_top = df[df['Brand'].isin(top_brands)]
+
+plt.figure(figsize=(10,6))
+sns.scatterplot(
+    data=df_top, 
+    x="Battery Capacity (kWh)", 
+    y="Real-World Range (km)", 
+    hue="Brand",
+    style="Vehicle Status",
+    s=80
+)
+plt.title("Battery Capacity vs Range — Top 5 EV Brands", fontsize=14, fontweight='bold')
+plt.xlabel("Battery Capacity (kWh)")
+plt.ylabel("Real-World Range (km)")
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+plt.tight_layout()
+
+# ✅ Save Scatterplot
+plt.savefig(os.path.join(save_path, "step10_battery_vs_range_top_brands.png"), dpi=300, bbox_inches='tight')
+plt.show()
+
+
+### 🔍 Observation
+
+#### 📊 Overview
+We examined how **EV performance and pricing features** relate using **Pairplot**, **Correlation Heatmap**, and **Scatterplots** by brand.  
+Methods used: `sns.pairplot()`, `sns.heatmap()`, and `sns.scatterplot()`.
+
+---
+
+### 🔗 Correlation Insights
+| Relationship | Correlation | Strength | Direction | Insight |
+|--------------|--------------|-----------|------------|----------|
+| **Battery Capacity ↔ Real-World Range** | **0.90** | Very Strong | Positive | Larger batteries directly increase driving range. |
+| **Range ↔ Acceleration** | **-0.74** | Strong | Negative | Faster acceleration reduces overall range. |
+| **Battery Capacity ↔ Acceleration** | **-0.69** | Strong | Negative | Bigger batteries support better acceleration. |
+| **Range ↔ Energy Efficiency** | **-0.20** | Weak | Negative | Efficient EVs achieve slightly higher range. |
+| **Price ↔ Battery Capacity** | **0.17** | Weak | Positive | Costlier EVs tend to have larger batteries, but not always. |
+
+---
+
+### 🧩 Pairplot Insights
+- **Premium EVs** cluster with **higher battery capacity and range**.  
+- **Budget EVs** group in the **lower range–smaller battery** zone.  
+- **Acceleration variability** is greatest among **premium performance models**.
+
+---
+
+### 🚘 Brand-Level Patterns
+- **Tesla** and **Mercedes-Benz** lead in **range and capacity**, emphasizing performance.  
+- **Volkswagen** and **BMW** balance range, cost, and efficiency.  
+- **Peugeot** and smaller brands focus on affordability, with modest specs.  
+- Most **discontinued EVs** had **lower range and smaller batteries**, hinting at outdated tech.
+
+---
+
+### 🎯 Summary
+- **Battery size** is the dominant driver of EV range and performance.  
+- **Performance–Range trade-off** exists: faster EVs travel less per charge.  
+- **Price** has limited correlation with technical specs — brand value and features drive pricing.  
+- The EV market clearly segments into **budget, mid-range, and premium tiers**.
+
+---
+
+**In short:**  
+> *Battery capacity is the engine of range and performance — while price follows brand and design more than engineering specs.*
+
+
+
+
+
+
+# 🧮 Part 4 — Statistical Summary
+
+## 📏 Step 11 — Central Tendency & Dispersion
+
+- **Let’s compute key descriptive metrics for continuous variables — mean, median, variance, and standard deviation.**
+
+stats_summary = df.describe().T[["mean", "50%", "std", "min", "max"]]
+stats_summary.rename(columns={"50%": "median"}, inplace=True)
+display(stats_summary)
+
+
+### 📊 Observation
+The dataset shows modern EVs are generally **new models (median year 2023)** with a **median range of 385 km** and **average battery capacity of ~71 kWh**.  
+Vehicles weigh around **2,100 kg**, accelerate from 0–100 km/h in about **6.7 seconds**, and support **fast charging speeds averaging 113 kW**.  
+The **average EV price is ~€48,000**, ranging from **€10,000 to nearly €100,000**, indicating a **diverse market** spanning budget to premium models.
+
+
+
+
+## 🧠 Step 12 — Interpretations & Data-Driven Conclusions
+
+
+
+Based on all the analyses and visualizations performed in this notebook, the following interpretations summarize the overall Electric Vehicle (EV) market landscape.
+
+---
+
+### 1️⃣ EV Market: Concentrated but Competitive
+- **Data evidence:** The top 15 brands contribute roughly **64 %** of all EV models.  
+  **Mercedes-Benz** leads with **8 % (78 models)**, while over **50 other brands** make up the “Others” category (≈ 36 %).  
+- **Interpretation:** The EV market shows a few strong incumbents but remains highly diverse and open, reflecting a **healthy level of competition and innovation**.
+
+---
+
+### 2️⃣ Price Reflects Core Performance Features
+- **Data evidence:** Moderate positive correlations were observed between price and performance metrics:  
+  - `Price (€)` ↔ `Battery Capacity (kWh)` ≈ **+0.6**  
+  - `Price (€)` ↔ `Real-World Range (km)` ≈ **+0.5**  
+  - `Price (€)` ↔ `Fast Charging Speed (kW)` ≈ **+0.4**
+- **Interpretation:** Higher-priced EVs generally offer larger batteries, better range, and faster charging speeds — suggesting that **battery technology and charging capability drive cost** more than brand alone.
+
+---
+
+### 3️⃣ Clear Range–Performance Trade-Off
+- **Data evidence:**  
+  - `Range (km)` ↔ `Battery Capacity (kWh)` ≈ **+0.90** (very strong positive)  
+  - `Range (km)` ↔ `Acceleration (sec)` ≈ **–0.74** (strong negative)  
+  - `Battery Capacity (kWh)` ↔ `Acceleration (sec)` ≈ **–0.69**
+- **Interpretation:** Larger batteries provide longer range and stronger performance, but faster acceleration reduces efficiency and range — a **physics-driven trade-off** visible across models.
+
+---
+
+### 4️⃣ Energy Efficiency Is Mostly Independent of Price
+- **Data evidence:**  
+  - `Energy Efficiency (Wh/km)` ↔ `Price (€)` ≈ **+0.2** (weak positive)  
+- **Interpretation:** Expensive cars are **not necessarily more efficient**. Efficiency depends more on drivetrain design, aerodynamics, and power management than on price.
+
+---
+
+### 5️⃣ Practical Features (Towing & Cargo) Are Secondary
+- **Data evidence:**  
+  - Median towing capacity ≈ **1000 kg**, but **25 % of EVs cannot tow at all**.  
+  - Cargo space centers around **500 L**, with minimal link to price (r ≈ +0.2).  
+- **Interpretation:** These features are **not yet major determinants of price** or consumer targeting; current EVs emphasize range, performance, and technology over heavy-duty utility.
+
+---
+
+### 6️⃣ Market Trend: Modern and Rapidly Evolving
+- **Data evidence:**  
+  - Median model year ≈ **2023**; maximum year = **2026**.  
+- **Interpretation:** The dataset captures a **forward-looking snapshot** of the EV market, including many models recently launched or upcoming — a sign of fast innovation cycles.
+
+---
+
+### ✅ Overall Insights
+- **Battery capacity is the strongest predictor** of both range and performance.  
+- **Performance vs Efficiency trade-off** remains fundamental.  
+- **Price tiers (Budget – Mid – Premium)** reflect more on brand and comfort features than pure technical superiority.  
+- **EV market diversity** continues to expand, suggesting opportunity for both established automakers and emerging players.
+
+---
+
+**In summary:**  
+> The EV landscape is technologically logical, economically layered, and rapidly evolving.  
+> Battery size drives capability, while price reflects brand strategy more than physics.
+
+
+
+
+## 🏁 Step 13 — Conclusions
+
+- After performing comprehensive **Exploratory Data Analysis (EDA)** on the Electric Vehicle (EV) dataset — including brand distribution, numerical feature exploration, correlation mapping, and multivariate analysis — the following key conclusions can be drawn:
+
+---
+
+### ⚡ 1️⃣ Battery Capacity Is the Heart of EV Performance
+- **Battery Capacity (kWh)** shows the **strongest positive correlation (r ≈ 0.90)** with **Real-World Range (km)**.  
+- This confirms that **range is primarily driven by battery size**, making battery innovation the single most influential factor in EV design and pricing.
+
+---
+
+### 🚀 2️⃣ Range and Performance Have an Inverse Relationship
+- A **strong negative correlation (r ≈ -0.74)** exists between **Acceleration (0-100 km/h)** and **Range (km)**.  
+- High-performance EVs achieve faster speeds at the cost of shorter range — a clear **energy efficiency trade-off** governed by physics and drivetrain power demands.
+
+---
+
+### 💰 3️⃣ Price Reflects Technology, Not Just Brand
+- **Price (€)** correlates moderately with **Battery Capacity (≈ +0.6)** and **Range (≈ +0.5)**,  
+  showing that buyers pay primarily for better energy storage and charging capabilities.  
+- However, **Price has weak correlation with Efficiency (≈ +0.2)**, meaning expensive EVs are not necessarily more energy-efficient.
+
+---
+
+### 🌍 4️⃣ EV Market Is Diverse Yet Concentrated
+- **Top 15 brands cover about 64 %** of the total models, with **Mercedes-Benz** leading at 8 %.  
+- The remaining 35 % belong to smaller manufacturers — evidence of a **growing and competitive EV ecosystem** where innovation can come from both legacy and new players.
+
+---
+
+### 🧭 5️⃣ Practical Utility Features Are Still Secondary
+- **Median Towing Capacity ≈ 1000 kg**, and nearly **25 % of EVs have no towing capability**.  
+- **Cargo volume (~500 L median)** shows weak connection with price, confirming that **performance and efficiency outweigh utility** in current EV market priorities.
+
+---
+
+### 🔋 6️⃣ The EV Industry Is Rapidly Evolving
+- The **average model year ≈ 2023**, with future-ready models extending to **2026**.  
+- This indicates a **dynamic, innovation-driven industry**, constantly introducing new models with improved range and efficiency.
+
+---
+
+### ✅ Final Takeaway
+> The EV market is technologically logical and commercially diverse.  
+> **Battery technology defines range and performance**, while **price reflects both innovation and brand positioning**.  
+> A clear **trade-off between performance, efficiency, and cost** exists — and mastering that balance will determine the leaders of the next generation of electric mobility.
+
+
+
+
+## 💾 Step 14 — Save EDA-Processed Dataset
+
+output_path = r"C:\Users\kishore\OneDrive\Desktop\Web scrapping_REGEX\webscrapping_project\eda\EV_Data_EDA_Ready.csv"
+df.to_csv(output_path, index=False, encoding='utf-8-sig')
+print(f"✅ EDA-Processed Dataset Saved to:\n{output_path}")
+
+
+
+
+
+
+
+
+" with this visualisations I generated 25 images of visuals, can you give me best ppt slides with content and which slide should contain what information and rom which slide we should add visuals and their story telling of that visual in ppt slides. give me the best content and accurate content to add in our ppt, don't give wrong or inaccurate data. Is that possible?
