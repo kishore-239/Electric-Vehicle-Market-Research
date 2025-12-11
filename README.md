@@ -1,7 +1,7 @@
-[![GitHub stars](https://img.shields.io/github/stars/kishore-239/Electric-Vehicle-Market-Research)](https://github.com/kishore-239/Electric-Vehicle-Market-Research/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/kishore-239/Electric-Vehicle-Market-Research)](https://github.com/kishore-239/Electric-Vehicle-Market-Research/network)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://python.org)
-[![Power BI](https://img.shields.io/badge/Power_BI-Interactive_Dashboard-yellow)](https://powerbi.microsoft.com)
+[![Power BI](https://img.shields.io/badge/Power_BI-Dashboard-yellow)](https://powerbi.microsoft.com)
+[![Pandas](https://img.shields.io/badge/Pandas-Data_Analysis-green)](https://pandas.pydata.org)
+[![BeautifulSoup](https://img.shields.io/badge/BeautifulSoup-Web_Scraping-orange)](https://www.crummy.com/software/BeautifulSoup/)
 
 # ⚡ EV Market Analysis: From Web Scraping to Interactive Dashboard
 
@@ -171,6 +171,7 @@ A comprehensive **Electric Vehicle (EV) market analysis** project combining **Py
 - Data-driven storytelling
 
 ## 📁 Project Structure
+```text
 Electric-Vehicle-Market-Research/
 │
 ├── data_collection/
