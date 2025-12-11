@@ -194,7 +194,7 @@ Electric-Vehicle-Market-Research/
 │ └── battery_vs_range.png
 │
 └── README.md
-
+```
 
 
 ## 🚀 How to Use This Project
